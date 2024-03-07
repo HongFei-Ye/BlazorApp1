@@ -7,8 +7,10 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
 using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,15 +22,6 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityUserAccessor>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
-
-
-// ¹Ù·½Ä£°åIDS×Ô¶¯Éú³ÉµÄ
-builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultScheme = IdentityConstants.ApplicationScheme;
-        options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
-    })
-    .AddIdentityCookies();
 
 
 //var connectionString_EF = builder.Configuration.GetConnectionString("DefaultConnection_EF") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
@@ -45,136 +38,115 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
     options.SignIn.RequireConfirmedAccount = true;
 
-    // Ä¬ÈÏµÄÕË»§Ëø¶¨ÉèÖÃ
-    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(60); // ÕË»§Ëø¶¨Ê±³¤Îª60·ÖÖÓ
-    options.Lockout.MaxFailedAccessAttempts = 5; // ÔÊĞíÊ§°ÜµÇÂ¼µÄ×î´ó´ÎÊıÎª5´Î
-    options.Lockout.AllowedForNewUsers = false; // ÔÊĞíĞÂÓÃ»§±»Ëø¶¨
+    // é»˜è®¤çš„è´¦æˆ·é”å®šè®¾ç½®
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(60); // è´¦æˆ·é”å®šæ—¶é•¿ä¸º60åˆ†é’Ÿ
+    options.Lockout.MaxFailedAccessAttempts = 5; // å…è®¸å¤±è´¥ç™»å½•çš„æœ€å¤§æ¬¡æ•°ä¸º5æ¬¡
+    options.Lockout.AllowedForNewUsers = false; // å…è®¸æ–°ç”¨æˆ·è¢«é”å®š
 
-    // ÃÜÂëÉèÖÃ
-    options.Password.RequireDigit = true; // ÃÜÂëĞèÒª°üº¬Êı×Ö
-    options.Password.RequireLowercase = false; // ÃÜÂë²»ĞèÒª°üº¬Ğ¡Ğ´×ÖÄ¸
-    options.Password.RequireNonAlphanumeric = false; // ÃÜÂë²»ĞèÒª°üº¬ÌØÊâ×Ö·û
-    options.Password.RequireUppercase = false; // ÃÜÂë²»ĞèÒª°üº¬´óĞ´×ÖÄ¸
-    options.Password.RequiredLength = 6; // ÃÜÂë×îĞ¡³¤¶ÈÎª6¸ö×Ö·û
-    options.Password.RequiredUniqueChars = 1; // ÃÜÂëĞèÒª°üº¬µÄÎ¨Ò»×Ö·ûÊıÎª1¸ö
+    // å¯†ç è®¾ç½®
+    options.Password.RequireDigit = true; // å¯†ç éœ€è¦åŒ…å«æ•°å­—
+    options.Password.RequireLowercase = false; // å¯†ç ä¸éœ€è¦åŒ…å«å°å†™å­—æ¯
+    options.Password.RequireNonAlphanumeric = false; // å¯†ç ä¸éœ€è¦åŒ…å«ç‰¹æ®Šå­—ç¬¦
+    options.Password.RequireUppercase = false; // å¯†ç ä¸éœ€è¦åŒ…å«å¤§å†™å­—æ¯
+    options.Password.RequiredLength = 6; // å¯†ç æœ€å°é•¿åº¦ä¸º6ä¸ªå­—ç¬¦
+    options.Password.RequiredUniqueChars = 1; // å¯†ç éœ€è¦åŒ…å«çš„å”¯ä¸€å­—ç¬¦æ•°ä¸º1ä¸ª
 
-    // È·ÈÏÑéÖ¤·½Ê½
-    options.SignIn.RequireConfirmedEmail = false; // ĞèÒªÓÊÏäÑéÖ¤
-    options.SignIn.RequireConfirmedPhoneNumber = false; // ²»ĞèÒªÊÖ»úºÅÑéÖ¤
-    options.SignIn.RequireConfirmedAccount = false; // ²»ĞèÒªÕË»§È·ÈÏ
+    // ç¡®è®¤éªŒè¯æ–¹å¼
+    options.SignIn.RequireConfirmedEmail = false; // éœ€è¦é‚®ç®±éªŒè¯
+    options.SignIn.RequireConfirmedPhoneNumber = false; // ä¸éœ€è¦æ‰‹æœºå·éªŒè¯
+    options.SignIn.RequireConfirmedAccount = false; // ä¸éœ€è¦è´¦æˆ·ç¡®è®¤
 
-    // ÓÃ»§ÉèÖÃ
-    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+"; // ÔÊĞíµÄÓÃ»§Ãû×Ö·û
-    options.User.RequireUniqueEmail = false; // ²»ĞèÒªÓÊÏäµØÖ·Î¨Ò»
+    // ç”¨æˆ·è®¾ç½®
+    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+"; // å…è®¸çš„ç”¨æˆ·åå­—ç¬¦
+    options.User.RequireUniqueEmail = false; // ä¸éœ€è¦é‚®ç®±åœ°å€å”¯ä¸€
 
 })
-    .AddEntityFrameworkStores<ApplicationDbContext>() // Ìí¼ÓÊµÌå¿ò¼Ü´æ´¢Ö§³Ö
-    .AddSignInManager<SignInManager<ApplicationUser>>() // Ìí¼ÓµÇÂ¼¹ÜÀíÆ÷Ö§³Ö
-    .AddDefaultTokenProviders() // Ìí¼ÓÄ¬ÈÏµÄÁîÅÆÌá¹©³ÌĞò
+    .AddEntityFrameworkStores<ApplicationDbContext>() // æ·»åŠ å®ä½“æ¡†æ¶å­˜å‚¨æ”¯æŒ
+    .AddSignInManager<SignInManager<ApplicationUser>>() // æ·»åŠ ç™»å½•ç®¡ç†å™¨æ”¯æŒ
+    .AddDefaultTokenProviders() // æ·»åŠ é»˜è®¤çš„ä»¤ç‰Œæä¾›ç¨‹åº
     ;
 
-//builder.Services.AddIdentityServer(options =>
-//{
-//    options.LicenseKey = builder.Configuration["IdentityServerLicenseKey"];
-//    //options.LicenseKey = "Zpl7M3F6pvzJPG7IJr35gbJu+CglNFphrtbSpIByxaM=";
-//    options.Events.RaiseErrorEvents = true;
-//    options.Events.RaiseInformationEvents = true;
-//    options.Events.RaiseFailureEvents = true;
-//    options.Events.RaiseSuccessEvents = true;
-//})
-//    .AddApiAuthorization<ApplicationUser, ApplicationDbContext>(options =>
-//    {
-//        options.IdentityResources["openid"].UserClaims.Add("roleVIP");
+// æƒ³è¦æ·»åŠ ä¸€ä¸ªJWTæ¥ç»™è‡ªå·±çš„APIæ¥å£ä½¿ç”¨ï¼ŒAPIæ¥å£ç”¨æ¥å¯¹å¤–å¼€å‘ä¸€äº›æ•°æ®
+// ç°åœ¨é‡åˆ°çš„é—®é¢˜å°±æ˜¯ä¸€æ—¦å¢åŠ JWTï¼Œç™»å½•å°±å¤±æ•ˆ
+//builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddCookie().AddJwtBearer();
 
-//        // Client localhost
-//        var url2 = "localhost";
-//        var spaClient2 = ClientBuilder
-//            .SPA("BlazorOIDC.Localhost")
-//            .WithRedirectUri($"https://{url2}:5001/authentication/login-callback")
-//            .WithLogoutRedirectUri($"https://{url2}:5001/authentication/logout-callback")
-//            .Build();
-//        spaClient2.AllowOfflineAccess = true;
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer("scheme1", options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = "your_issuer1",
+            ValidAudience = "your_audience1",
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("Zpl7M3F6pvzJPG7IJr35gbJu+CglNFphrtbSpIByxaM="))
+        };
+    });
 
-//        spaClient2.AllowedCorsOrigins = new[]
-//        {
-//            $"https://{url2}:5001"
-//        };
-//        options.Clients.Add(spaClient2);
-
-//        var spaClientBlazor5002 = ClientBuilder
-//        .SPA("Blazor5002")
-//        .WithScopes("api")
-//        .Build();
-
-//        spaClientBlazor5002.AllowedCorsOrigins = new[]
-//        {
-//            $"http://0.0.0.0",
-//            $"http://0.0.0.0:5001",
-//            $"http://0.0.0.0:5002",
-//            $"http://localhost",
-//            $"http://localhost:5001",
-//            $"http://localhost:5002",
-//            $"https://localhost",
-//            $"https://localhost:5001",
-//            $"https://localhost:5002"
-//        };
-
-//        foreach (var item in spaClientBlazor5002.AllowedCorsOrigins)
-//        {
-//            spaClientBlazor5002.RedirectUris.Add($"{item}/authentication/login-callback");
-//            spaClientBlazor5002.PostLogoutRedirectUris.Add($"{item}/authentication/logout-callback");
-//        }
-
-//        spaClientBlazor5002.AllowOfflineAccess = true;
-
-//        options.Clients.Add(spaClientBlazor5002);
-
-//    });
-
-
-// ÏëÒªÌí¼ÓÒ»¸öJWTÀ´¸ø×Ô¼ºµÄAPI½Ó¿ÚÊ¹ÓÃ£¬API½Ó¿ÚÓÃÀ´¶ÔÍâ¿ª·¢Ò»Ğ©Êı¾İ
-// ÏÖÔÚÓöµ½µÄÎÊÌâ¾ÍÊÇÒ»µ©Ôö¼ÓJWT£¬µÇÂ¼¾ÍÊ§Ğ§
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddCookie().AddJwtBearer();
+// å®˜æ–¹æ¨¡æ¿IDSè‡ªåŠ¨ç”Ÿæˆçš„
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = IdentityConstants.ApplicationScheme; // å€¼ï¼šIdentity.Application
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
+})
+    .AddIdentityCookies();
 
 //builder.Services.Configure<AuthenticationOptions>(options => options.DefaultScheme = "ApplicationDefinedAuthentication");
 
-
 //builder.Services.AddAuthentication()
-//    .AddIdentityServerJwt()
+////    .AddIdentityServerJwt()
 //    .AddPolicyScheme("ApplicationDefinedAuthentication", null, CustomerPolicyScheme);
+
 
 //static void CustomerPolicyScheme(PolicySchemeOptions options)
 //{
 //    options.ForwardDefaultSelector = (context) =>
 //    {
-//        //ÌØ¶¨·½°¸ÊÚÈ¨
-//        Console.WriteLine(context.Request.Path);
+//        //ç‰¹å®šæ–¹æ¡ˆæˆæƒ
+//        System.Console.WriteLine("Pathç›®å½•ï¼š" + context.Request.Path);
 //        string? authorization = context.Request.Headers[HeaderNames.Authorization];
+//        System.Console.WriteLine("Headerå¤´éƒ¨ï¼š" + authorization);
 //        if (!string.IsNullOrEmpty(authorization) && authorization.StartsWith("Bearer "))
 //        {
 //            var token = authorization.Substring("Bearer ".Length).Trim();
-//            //Ê¹ÓÃ JWT ³ÖÓĞÕßÉí·İÑéÖ¤
-//            return IdentityServerJwtConstants.IdentityServerJwtBearerScheme;
+//            //ä½¿ç”¨ JWT æŒæœ‰è€…èº«ä»½éªŒè¯
+//            return "JwtBearerScheme";
 //        }
 //        else
 //        {
-//            //Õë¶ÔµÇÂ¼Ê¹ÓÃ»ùÓÚ cookie µÄÉí·İÑéÖ¤
+//            //é’ˆå¯¹ç™»å½•ä½¿ç”¨åŸºäº cookie çš„èº«ä»½éªŒè¯
 //            return IdentityConstants.ApplicationScheme;
 
 //        }
+
+//        //if (context.Request.Path.StartsWithSegments(new PathString("/Identity"), StringComparison.OrdinalIgnoreCase) ||
+//        //    context.Request.Path.StartsWithSegments(new PathString("/_blazor"), StringComparison.OrdinalIgnoreCase))
+//        //{
+//        //    //é’ˆå¯¹ç™»å½•ä½¿ç”¨åŸºäº cookie çš„èº«ä»½éªŒè¯
+//        //    return IdentityConstants.ApplicationScheme;
+//        //}
+//        //else
+//        //{
+//        //    //ä½¿ç”¨ JWT æŒæœ‰è€…èº«ä»½éªŒè¯
+//        //    return "JwtBearerScheme";
+//        //}
 //    };
 //}
 
 
+
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// Ìí¼Ó MVC ¿ØÖÆÆ÷·şÎñ => API¿ØÖÆÆ÷
+// æ·»åŠ  MVC æ§åˆ¶å™¨æœåŠ¡ => APIæ§åˆ¶å™¨
 builder.Services.AddControllers();
 
-//Ìí¼Ó Swagger ·şÎñÅäÖÃ
+//æ·»åŠ  Swagger æœåŠ¡é…ç½®
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "API ¿ª·¢²âÊÔ", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo { Title = "API å¼€å‘æµ‹è¯•", Version = "v1" });
+
 });
 
 var app = builder.Build();
@@ -184,7 +156,7 @@ if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();
 
-    //ÆôÓÃ Swagger ÖĞ¼ä¼ş
+    //å¯ç”¨ Swagger ä¸­é—´ä»¶
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -203,7 +175,7 @@ else
 //app.UseIdentityServer();
 
 
-// ÅäÖÃ API Â·ÓÉ
+// é…ç½® API è·¯ç”±
 app.MapControllers();
 
 
