@@ -145,6 +145,9 @@ builder.Services.AddAuthentication()
 
 static void CustomerPolicyScheme(PolicySchemeOptions options)
 {
+    string IdentityServerJwtScheme = "IdentityServerJwt";
+    string IdentityServerJwtBearerScheme = "IdentityServerJwtBearer";
+
     options.ForwardDefaultSelector = (context) =>
     {
         //特定方案授权
@@ -154,7 +157,7 @@ static void CustomerPolicyScheme(PolicySchemeOptions options)
         {
             var token = authorization.Substring("Bearer ".Length).Trim();
             //使用 JWT 持有者身份验证
-            return "JwtBearerScheme";
+            return IdentityServerJwtBearerScheme;
         }
         else
         {

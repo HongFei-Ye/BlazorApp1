@@ -1,16 +1,17 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BlazorApp1.Controllers
 {
     [Route("/Api/[controller]")]
     public class MyApiController : ControllerBase
     {
-
+        [Authorize]
         [HttpGet("Test1", Name = "GetTest1")]
         public IActionResult Get1()
         {
             // 处理 GET 请求的逻辑
-            return Ok("Test1 API GET 请求成功");
+            return Ok("授权后 Test1 API GET 请求成功");
         }
 
         [HttpGet("Test2", Name = "GetTest2")]
