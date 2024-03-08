@@ -1,8 +1,6 @@
 using BlazorApp1.Components;
 using BlazorApp1.Components.Account;
 using BlazorApp1.Data;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -71,7 +69,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 //builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddCookie().AddJwtBearer();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer("scheme1", options =>
+    .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
@@ -79,11 +77,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = "your_issuer1",
-            ValidAudience = "your_audience1",
+            ValidIssuer = "Issuer1",
+            ValidAudience = "audience1",
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("Zpl7M3F6pvzJPG7IJr35gbJu+CglNFphrtbSpIByxaM="))
         };
+
     });
+
 
 // 官方模板IDS自动生成的
 builder.Services.AddAuthentication(options =>
@@ -142,12 +142,44 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 // 添加 MVC 控制器服务 => API控制器
 builder.Services.AddControllers();
 
-//添加 Swagger 服务配置
+
+// 添加 Swagger 服务配置
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "API 开发测试", Version = "v1" });
 
+    JwtService jwtService = new("Issuer1", "audience1", "Zpl7M3F6pvzJPG7IJr35gbJu+CglNFphrtbSpIByxaM=");
+
+    var Token2 = jwtService.GenerateToken("123456", "2104563259");
+
+    // 添加JWT授权按钮
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWTToken：" + Token2,
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer"
+    });
+
+    // 使用 JWT 授权
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] { }
+        }
+    });
+
 });
+
 
 var app = builder.Build();
 
@@ -172,7 +204,14 @@ else
 }
 
 
-//app.UseIdentityServer();
+// 使用身份验证中间件
+app.UseAuthentication();
+
+// 添加路由
+app.UseRouting();
+
+// 使用授权中间件
+app.UseAuthorization();
 
 
 // 配置 API 路由

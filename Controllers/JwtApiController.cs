@@ -6,8 +6,7 @@ namespace BlazorApp1.Controllers
 {
 
     [Route("/Api/[controller]")]
-    //[Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
-    [Authorize]
+    [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
     public class JwtApiController : ControllerBase
     {
 
@@ -41,6 +40,14 @@ namespace BlazorApp1.Controllers
             // 处理 POST 请求的逻辑
             // 你可以从请求体中获取传递的数据（例如使用 [FromBody] 特性）
             return Ok("JwtTest2 API POST 请求成功");
+        }
+
+        [HttpGet("CheckAuthenticationType")]
+        public IActionResult CheckAuthenticationType()
+        {
+            var authenticationType = HttpContext.User.Identity.AuthenticationType;
+
+            return Ok($"API is using {authenticationType} authentication.");
         }
 
     }
