@@ -93,7 +93,7 @@ builder.Services.AddAuthentication(options =>
 })
     .AddIdentityCookies();
 
-//builder.Services.Configure<AuthenticationOptions>(options => options.DefaultScheme = "ApplicationDefinedAuthentication");
+builder.Services.Configure<AuthenticationOptions>(options => options.DefaultScheme = "ApplicationDefinedAuthentication");
 
 //builder.Services.AddAuthentication()
 ////    .AddIdentityServerJwt()
