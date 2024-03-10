@@ -1,9 +1,11 @@
 using BlazorApp1.Components;
 using BlazorApp1.Components.Account;
 using BlazorApp1.Data;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Net.Http.Headers;
@@ -22,15 +24,32 @@ builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
 
-//var connectionString_EF = builder.Configuration.GetConnectionString("DefaultConnection_EF") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
-var connectionString_SL = builder.Configuration.GetConnectionString("DefaultConnection_SL") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+var connectionString_EF = builder.Configuration.GetConnectionString("DefaultConnection_EF") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+//var connectionString_SL = builder.Configuration.GetConnectionString("DefaultConnection_SL") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    //options.UseSqlServer(connectionString))
-    options.UseSqlite(connectionString_SL));
+    options.UseSqlServer(connectionString_EF));
+    //options.UseSqlite(connectionString_SL));
 
 
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+
+
+// 添加 Hangfire 服务
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(connectionString_EF));
+
+
+// 如果需要定时任务，可以添加定时任务服务
+builder.Services.AddHangfireServer();
+
+builder.Services.AddScoped<MyService>();
+
+
+
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
@@ -202,6 +221,12 @@ else
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new MyAuthorizationFilter() }
+});
 
 
 // 使用身份验证中间件
